@@ -1,4 +1,4 @@
-﻿/*
+/*
  *   Module Name: BattleshipGame.cs
  *   Purpose: This module is the main game class for the Battleship game.
  *            It is responsible for managing all other subordinate manager objects needed to run the game.
@@ -496,6 +496,138 @@ namespace Battleship
         /// <summary>
         /// Handles shooting logic for the game.
         /// </summary>
+        
+private void BombShoot(Grid grid, ref int hitLimit)
+{
+    if (grid.CurrentTile == null)
+    {
+        return; // No valid tile selected
+    }
+
+    // Get the current tile's coordinates
+    Tuple<int, int> tileCoordinates = grid.GridArray.CoordinatesOf(grid.CurrentTile);
+    int centerX = tileCoordinates.Item1;
+    int centerY = tileCoordinates.Item2;
+
+    // Track the number of hits for this bomb shot
+    int hitsMade = 0;
+
+    // Loop over a 3x3 area centered around the clicked tile
+    for (int rowOffset = -1; rowOffset <= 1; rowOffset++)
+    {
+        for (int colOffset = -1; colOffset <= 1; colOffset++)
+        {
+            int newX = centerX + colOffset;
+            int newY = centerY + rowOffset;
+
+            // Ensure we're within bounds of the grid
+            if (newX >= 0 && newX < grid.Size && newY >= 0 && newY < grid.Size)
+            {
+                // Temporarily set the current tile to the one in the 3x3 grid
+                GridTile tileToShoot = grid.GridArray[newY, newX];
+
+                if (!tileToShoot.IsShot) // Only shoot if the tile hasn't been shot already
+                {
+                    grid.CurrentTile = tileToShoot;
+                    bool? success = grid.Shoot();
+
+                    // If the shot was a hit, update the hit limit
+                    if (success == true)
+                    {
+                        hitsMade++;
+                    }
+                }
+            }
+        }
+    }
+
+    // Adjust the hit limit by the number of hits made
+    hitLimit -= hitsMade;
+
+    // After the bomb shot, reset CurrentTile to avoid lingering selection issues
+    grid.CurrentTile = null;
+}
+
+private void CarpetBombShoot(Grid grid, ref int hitLimit, CursorOrientation orientation)
+{
+    if (grid.CurrentTile == null)
+    {
+        return; // No valid tile selected
+    }
+
+    // Get the current tile's coordinates
+    Tuple<int, int> tileCoordinates = grid.GridArray.CoordinatesOf(grid.CurrentTile);
+    int centerX = tileCoordinates.Item1;
+    int centerY = tileCoordinates.Item2;
+
+    // Track the number of hits for this carpet bomb shot
+    int hitsMade = 0;
+
+    if (orientation == CursorOrientation.HORIZONTAL)
+    {
+        // Blow up the entire row (centerY row)
+        for (int col = 0; col < grid.Size; col++)
+        {
+            GridTile tileToShoot = grid.GridArray[centerY, col];
+
+            if (!tileToShoot.IsShot) // Only shoot if the tile hasn't been shot already
+            {
+                grid.CurrentTile = tileToShoot;
+                bool? success = grid.Shoot();
+
+                // If the shot was a hit, update the hit limit
+                if (success == true)
+                {
+                    hitsMade++;
+                }
+            }
+        }
+    }
+    else if (orientation == CursorOrientation.VERTICAL)
+    {
+        // Blow up the entire column (centerX column)
+        for (int row = 0; row < grid.Size; row++)
+        {
+            GridTile tileToShoot = grid.GridArray[row, centerX];
+
+            if (!tileToShoot.IsShot) // Only shoot if the tile hasn't been shot already
+            {
+                grid.CurrentTile = tileToShoot;
+                bool? success = grid.Shoot();
+
+                // If the shot was a hit, update the hit limit
+                if (success == true)
+                {
+                    hitsMade++;
+                }
+            }
+        }
+    }
+
+    // Adjust the hit limit by the number of hits made
+    hitLimit -= hitsMade;
+
+    // After the carpet bomb shot, reset CurrentTile to avoid lingering selection issues
+    grid.CurrentTile = null;
+}
+        private ShotType selectedShot = ShotType.Normal; // Add shot selection: Normal or Bomb
+        private int P1BombAmmo = 1; // Add a variable for Player 1 bomb ammo 
+        private int P2BombAmmo = 1; // Add a variable for Player 2 bomb ammo 
+        private int P1CarpetBombAmmo = 1; // carpet bomb ammo for Player 1
+        private int P2CarpetBombAmmo = 1; // carpet bomb ammo for Player 2
+        private ShotType P1Shot = ShotType.Normal; // Add a variable for Player 1
+        private ShotType P2Shot = ShotType.Normal; // Add a variable for Player 2
+
+        // Declare Player 1 and Player 2 carpet bomb orientations
+        private CursorOrientation P1CarpetBombOrientation = CursorOrientation.HORIZONTAL;
+        private CursorOrientation P2CarpetBombOrientation = CursorOrientation.HORIZONTAL;
+
+        private enum ShotType
+        {
+            Normal,
+            Bomb,
+            CarpetBomb
+        }
         private void HandleShooting()
         {
             // If the game is not in progress, return because there's nothing to shoot.
@@ -506,49 +638,170 @@ namespace Battleship
                 
             MouseState mouseState = Mouse.GetState(); // Get the current mouse state.
 
-            // If the left mouse button is pressed and the read click is true, shoot the tile.
             if (selectedDifficulty == DifficultyState.Disabled) // Continues as normal if the AI is disabled
             {
+                // Handle shot selection (could be tied to a key or UI element)
+                KeyboardState keyboardState = Keyboard.GetState();
+                 // Default shot type to normal at the beginning of each player's turn
+                if (_turnManager!.IsP1sTurn)
+                {
+                    P1Shot = ShotType.Normal; // Player 1 defaults to normal shot
+                    if (keyboardState.IsKeyDown(Keys.B) && P1BombAmmo > 0)
+                    {
+                        P1Shot = ShotType.Bomb; // Player 1 switches to bomb shot if B is pressed
+                    }
+                    else if (keyboardState.IsKeyDown(Keys.C) && P1CarpetBombAmmo > 0)
+                    {
+                        P1Shot = ShotType.CarpetBomb; // Player 1 switches to carpet bomb shot if C is pressed
+                    }
+                    // Rotate the carpet bomb orientation when R is pressed
+                    if (P1Shot == ShotType.CarpetBomb && keyboardState.IsKeyDown(Keys.R))
+                    {
+                        P1CarpetBombOrientation = (P1CarpetBombOrientation == CursorOrientation.HORIZONTAL) ?
+                                                    CursorOrientation.VERTICAL : CursorOrientation.HORIZONTAL;
+                    }
+                }
+                else
+                {
+                    P2Shot = ShotType.Normal; // Player 2 defaults to normal shot
+
+                    if (keyboardState.IsKeyDown(Keys.B) && P2BombAmmo > 0)
+                    {
+                        P2Shot = ShotType.Bomb; // Player 2 switches to bomb shot if B is pressed
+                    }
+                    else if (keyboardState.IsKeyDown(Keys.C) && P2CarpetBombAmmo > 0)
+                    {
+                        P2Shot = ShotType.CarpetBomb; // Player 2 switches to carpet bomb shot if C is pressed
+                    }
+
+                    // Rotate the carpet bomb orientation when R is pressed
+                    if (P2Shot == ShotType.CarpetBomb && keyboardState.IsKeyDown(Keys.R))
+                    {
+                        P1CarpetBombOrientation = (P1CarpetBombOrientation == CursorOrientation.HORIZONTAL) ?
+                                                    CursorOrientation.VERTICAL : CursorOrientation.HORIZONTAL;
+                    }
+                }
+                // If the left mouse button is pressed and the read click is true, shoot the tile.
                 if (_shipManager!.ReadClick && mouseState.LeftButton == ButtonState.Pressed)
                 {
                     _shipManager.ReadClick = false; // Set the read click to false to prevent multiple shots per click.
                     bool? success = false; // This variable will store the result of the shot. Initialized to false.
-
                     // Shoot the tile for the player whose turn it is.
                     if (_turnManager!.IsP1sTurn)
                     {
-                        success = _player2grid!.Shoot();
-                        if (success == true)
+                        if (P1Shot == ShotType.Normal)
                         {
-                            P2HitLimit = P2HitLimit - 1; // Decrement the hit limit for player 2 if the shot was successful.
+                            success = _player2grid!.Shoot();
+                            if (success != null)
+                            {
+                                if (success == true)
+                                {
+                                    P2HitLimit = P2HitLimit - 1; // Decrement Player 2's hit limit if Player 1 hits
+
+                                }
+                                _turnManager.NextTurn();
+                                _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+                                _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+
+                                 // Reset the CurrentTile to avoid lingering issues
+                                _player1grid.CurrentTile = null;
+                                _player2grid.CurrentTile = null;
+                                }
                         }
-                    }
-                    else
+                        else if (P1Shot == ShotType.Bomb && P1BombAmmo > 0)
+                        {
+                            BombShoot(_player2grid, ref P2HitLimit); // Perform bomb shot on Player 2's grid
+                            P1BombAmmo--; // Decrease Player 1's bomb ammo after bomb shot
+                            success = true; // Bomb shot treated as a valid success
+
+                            // Turn progression after bomb shot
+                            _turnManager.NextTurn();
+                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+
+                            // Reset the CurrentTile to avoid lingering issues
+                            _player1grid.CurrentTile = null;
+                            _player2grid.CurrentTile = null;
+                        }
+                        else if (P1Shot == ShotType.CarpetBomb && P1CarpetBombAmmo > 0)
+                        {
+                            CarpetBombShoot(_player2grid, ref P2HitLimit, P1CarpetBombOrientation); // Perform carpet bomb shot on Player 2's grid
+                            P1CarpetBombAmmo--; // Decrease Player 1's carpet bomb ammo
+                            success = true; // Carpet bomb shot treated as a valid success
+
+                            // Turn progression after bomb shot
+                            _turnManager.NextTurn();
+                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+
+                            // Reset the CurrentTile to avoid lingering issues
+                            _player1grid.CurrentTile = null;
+                            _player2grid.CurrentTile = null;
+                        }
+                }
+                else
+                {
+                    if (P2Shot == ShotType.Normal)
                     {
                         success = _player1grid!.Shoot();
-                        if (success == true)
+                        if (success != null)
                         {
-                            P1HitLimit = P1HitLimit - 1; // Decrement the hit limit for player 1 if the shot was successful.
+                            if (success == true)
+                            {
+                                P1HitLimit = P1HitLimit - 1; // Decrement Player 1's hit limit if Player 1 hits
+                            }
+                            _turnManager.NextTurn();
+                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+
+                            // Reset the CurrentTile to avoid lingering issues
+                            _player1grid.CurrentTile = null;
+                            _player2grid.CurrentTile = null;
                         }
                     }
-
-                    // If the shot was valid (a hit or a miss), move to the next turn and hide the ships of the player who is not taking their turn.
-                    if (success is not null)
+                    else if (P2Shot == ShotType.Bomb && P2BombAmmo > 0)
                     {
+                        BombShoot(_player1grid, ref P1HitLimit); // Perform bomb shot on Player 1's grid
+                        P2BombAmmo--; // Decrease Player 2's bomb ammo after bomb shot
+                        success = true; // Bomb shot treated as a valid success
+
                         _turnManager.NextTurn();
                         _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
                         _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+
+                        // Reset the CurrentTile to avoid lingering issues
+                        _player1grid.CurrentTile = null;
+                        _player2grid.CurrentTile = null;
                     }
+                    else if (P2Shot == ShotType.CarpetBomb && P2CarpetBombAmmo > 0)
+                    {
+                        CarpetBombShoot(_player1grid, ref P1HitLimit, P2CarpetBombOrientation); // Perform carpet bomb shot on Player 1's grid
+                        P2CarpetBombAmmo--; // Decrease Player 2's carpet bomb ammo after bomb shot
+                        success = true; 
+
+                        _turnManager.NextTurn();
+                        _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+                        _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+
+                        // Reset the CurrentTile to avoid lingering issues
+                        _player1grid.CurrentTile = null;
+                        _player2grid.CurrentTile = null;
+                        
+                }
                     if (P1HitLimit == 0)
                     {
                         inGame = false;
                         currentGameState = GameState.MainMenu;
+                        _turnManager.SwapWaiting = true;
+                        _shipManager.ReadClick = false;
                         base.Initialize();
                     }
                     else if (P2HitLimit == 0)
                     {
                         inGame = false;
                         currentGameState = GameState.MainMenu;
+                        _turnManager.SwapWaiting = true;
+                        _shipManager.ReadClick = false;
                         base.Initialize();
                     }
                 }
@@ -789,4 +1042,5 @@ namespace Battleship
             }
         }
     }
+}
 }
