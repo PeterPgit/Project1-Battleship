@@ -350,7 +350,7 @@ namespace Battleship
                 {
                     if (inAirstrikeMode)
                         inAirstrikeMode = false;
-                    else
+                    else if ((_turnManager!.IsP1sTurn && P1AirstrikeCount != 0) || (!_turnManager!.IsP1sTurn && P2AirstrikeCount != 0))
                         inAirstrikeMode = true;
                     _keyboardTimer = new Timer(200); // Set the timer to 200ms.
                     _keyboardTimer.Elapsed += OnTimeoutEvent!; // Call the OnTimeoutEvent method when the timer times out. Prevents the cursor from rotating more than 1 time per 200ms.
@@ -580,6 +580,7 @@ namespace Battleship
                                 }
                             }
                             P1AirstrikeCount--;
+                            inAirstrikeMode = false;
                         } 
                         else
                         {
@@ -605,6 +606,7 @@ namespace Battleship
                                 }
                             }
                             P2AirstrikeCount--;
+                            inAirstrikeMode = false;
                         } 
                         else
                         {
