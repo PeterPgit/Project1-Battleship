@@ -15,6 +15,9 @@
 
 ### Ian Wilson
 
+- 1.5 (9/28)
+- 4 (9/29)
+
 ### Andrew Uriell
 
 ### Michael Oliver
