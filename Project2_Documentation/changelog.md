@@ -1,5 +1,18 @@
 # Changelog
 
+## September 29
+
+### Added
+
+- Implemented 3x3 bomb for 2 player mode **(Ian)**
+- Implemented Row/Column bomb for 2 player mode **(Ian)**
+
+## September 28
+
+### Updates
+
+- Worked on the custom additions **(Ian)**
+
 ## September 23
 
 ### Added
@@ -8,6 +21,7 @@
 - Implemented easy difficulty for AI **(Peter)**
 - Implemented hard difficulty for AI **(Peter)**
 - Implemented medium difficulty for AI **(Peter)**
+
 
 ## September 22
 
