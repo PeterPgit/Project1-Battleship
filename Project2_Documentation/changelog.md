@@ -1,5 +1,11 @@
 # Changelog
 
+## September 29
+
+### Added
+
+- Added horizontal special attack (airstrike) **(Peter)**
+
 ## September 23
 
 ### Added
