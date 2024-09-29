@@ -172,7 +172,7 @@ namespace Battleship
         /// <param name="startLocation">The start coordinates for the cursor rectangle.</param>
         /// <param name="endLocation">The end coordinates for the cursor rectangle.</param>
         /// <param name="size">The size of the rectangles.</param>
-        private void UpdateRectangles(Point startLocation, Point endLocation, Point size)
+        public void UpdateRectangles(Point startLocation, Point endLocation, Point size)
         {
             // If the rectangles are null or the start and end locations are different from startLocation and endLocation, update the rectangles.
             if (CursorStartRectangle is null || CursorStartRectangle.Value.X != startLocation.X || CursorStartRectangle.Value.Y != startLocation.Y ||

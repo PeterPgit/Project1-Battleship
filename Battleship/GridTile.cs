@@ -82,8 +82,8 @@ namespace Battleship
         public Point GetCursorLeftHalfLocation(int squareCoord, int shipSize)
         {
             // validates the ship size. The maximum ship size is 5.
-            if (shipSize > 5)
-                shipSize = 5;
+            // if (shipSize > 5)
+            //     shipSize = 5;
 
             int squareAdjust = 0; // a variable to adjust the x coordinate of the cursor
 
@@ -108,8 +108,8 @@ namespace Battleship
         public Point GetCursorRightHalfLocation(int squareCoord, int shipSize)
         {
             // validates the ship size. The maximum ship size is 5.
-            if (shipSize > 5)
-                shipSize = 5;
+            // if (shipSize > 5)
+            //     shipSize = 5;
 
             // sets the variable that offsets how far from the left cursor the right cursor should be
             // scale factor * pixels per square * ship size + half of the scaled square size - 3 pixels to center it

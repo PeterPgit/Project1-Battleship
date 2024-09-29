@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.IO.Pipes;
+using System.Timers;
 
 namespace Battleship
 {
@@ -137,8 +138,27 @@ namespace Battleship
         public List<(int,int)> priorityAttacks;
 
         /// <summary>
+        /// P1 airstrike special attack count
+        ///</summary>
+        private int P1AirstrikeCount;
+
+        /// <summary>
+        /// P2 airstrike special attack count
+        ///</summary>
+        private int P2AirstrikeCount;
+
+        /// <summary>
+        /// Airstrike attack state
+        ///</summary>
+        private bool inAirstrikeMode;
+
+        /// <summary>
+        /// .
+        /// </summary>
+        private Timer? _keyboardTimer;
+        /// <summary>
         /// Initializes the relevant objects and window. 
-        /// Called once at startup.
+        /// Called once at startup and at game end.
         /// </summary>
         protected override void Initialize()
         {
@@ -169,6 +189,9 @@ namespace Battleship
             _shipManager.OnPlayerChange = _turnManager.NextTurn;
 
             priorityAttacks = new List<(int, int)>(); // Initializes the empty list
+            P1AirstrikeCount = 1;
+            P2AirstrikeCount = 1;
+            inAirstrikeMode = false;
             base.Initialize(); // Ensures the framerwork-level logic in the base class is initialized.
         }
 
@@ -323,18 +346,45 @@ namespace Battleship
             // If the AI is disabled, continue the game as originally coded
             if (selectedDifficulty == DifficultyState.Disabled)
             {
-
+                if (Keyboard.GetState().IsKeyDown(Keys.A) && (_keyboardTimer is null || !_keyboardTimer.Enabled))
+                {
+                    if (inAirstrikeMode)
+                        inAirstrikeMode = false;
+                    else
+                        inAirstrikeMode = true;
+                    _keyboardTimer = new Timer(200); // Set the timer to 200ms.
+                    _keyboardTimer.Elapsed += OnTimeoutEvent!; // Call the OnTimeoutEvent method when the timer times out. Prevents the cursor from rotating more than 1 time per 200ms.
+                    _keyboardTimer.Start(); // Start the timer
+                }
                 // Update the cursor object depending on if player 1 is placing ships or shooting tiles.
                 if (_shipManager!.IsPlayer1Placing && _player1grid.CurrentTile is not null)
                     _cursor.UpdateWhilePlacing(_player1grid.CurrentTile, currentPlayer1TileLocation, _shipManager.CurrentShipSize);
                 else if (_player1grid.CurrentTile is not null)
+                {
+                    if (inAirstrikeMode)
+                    {
+                    _cursor.UpdateRectangles(_player1grid.CurrentTile.GetCursorLeftHalfLocation(currentPlayer1TileLocation.Item1, 10),
+                                    _player1grid.CurrentTile.GetCursorRightHalfLocation(currentPlayer1TileLocation.Item1, (10-currentPlayer1TileLocation.Item1)+1),
+                                    _player1grid.CurrentTile.GetCursorAdjustedHorizontalSize());
+                    }
+                    else
                     _cursor.UpdateWhilePlaying(_player1grid.CurrentTile, currentPlayer1TileLocation.Item1);
-
+                }
+                
                 // Update the cursor object depending on if player 2 is placing ships or shooting tiles.
                 if (_shipManager!.IsPlayer2Placing && _player2grid.CurrentTile is not null)
                     _cursor.UpdateWhilePlacing(_player2grid.CurrentTile, currentPlayer2TileLocation, _shipManager.CurrentShipSize);
                 else if (_player2grid.CurrentTile is not null)
+                {
+                    if (inAirstrikeMode)
+                    {
+                    _cursor.UpdateRectangles(_player2grid.CurrentTile.GetCursorLeftHalfLocation(currentPlayer2TileLocation.Item1, 10),
+                                    _player2grid.CurrentTile.GetCursorRightHalfLocation(currentPlayer2TileLocation.Item1, (10-currentPlayer2TileLocation.Item1)+1),
+                                    _player2grid.CurrentTile.GetCursorAdjustedHorizontalSize());
+                    }
+                    else
                     _cursor.UpdateWhilePlaying(_player2grid.CurrentTile, currentPlayer2TileLocation.Item1);
+                }
 
                 // Check if the left mouse button is released. If it is, indicate that the click has been read.
                 if (Mouse.GetState().LeftButton == ButtonState.Released) // If the left mouse button is released, set the read click to true.
@@ -517,18 +567,52 @@ namespace Battleship
                     // Shoot the tile for the player whose turn it is.
                     if (_turnManager!.IsP1sTurn)
                     {
-                        success = _player2grid!.Shoot();
-                        if (success == true)
+                        Tuple<int, int> currentPlayer2TileLocation = _player2grid.GridArray.CoordinatesOf(_player2grid.CurrentTile);
+                        if (inAirstrikeMode && P1AirstrikeCount != 0)
                         {
-                            P2HitLimit = P2HitLimit - 1; // Decrement the hit limit for player 2 if the shot was successful.
+                            for (int i = 1; i <= 10; i++)
+                            {
+                                _player2grid.CurrentTile = _player2grid.GridArray[currentPlayer2TileLocation.Item2, i];
+                                success = _player2grid!.Shoot();
+                                if (success == true)
+                                {
+                                    P2HitLimit = P2HitLimit - 1; // Decrement the hit limit for player 2 if the shot was successful.
+                                }
+                            }
+                            P1AirstrikeCount--;
+                        } 
+                        else
+                        {
+                            success = _player2grid!.Shoot();
+                            if (success == true)
+                            {
+                                P2HitLimit = P2HitLimit - 1; // Decrement the hit limit for player 2 if the shot was successful.
+                            }
                         }
                     }
                     else
                     {
-                        success = _player1grid!.Shoot();
-                        if (success == true)
+                        Tuple<int, int> currentPlayer1TileLocation = _player1grid.GridArray.CoordinatesOf(_player1grid.CurrentTile);
+                        if (inAirstrikeMode && P2AirstrikeCount != 0)
                         {
-                            P1HitLimit = P1HitLimit - 1; // Decrement the hit limit for player 1 if the shot was successful.
+                            for (int i = 1; i <= 10; i++)
+                            {
+                                _player1grid.CurrentTile = _player1grid.GridArray[currentPlayer1TileLocation.Item2, i];
+                                success = _player1grid!.Shoot();
+                                if (success == true)
+                                {
+                                    P1HitLimit = P1HitLimit - 1; // Decrement the hit limit for player 2 if the shot was successful.
+                                }
+                            }
+                            P2AirstrikeCount--;
+                        } 
+                        else
+                        {
+                            success = _player1grid!.Shoot();
+                            if (success == true)
+                            {
+                                P1HitLimit = P1HitLimit - 1; // Decrement the hit limit for player 1 if the shot was successful.
+                            }
                         }
                     }
 
@@ -543,13 +627,13 @@ namespace Battleship
                     {
                         inGame = false;
                         currentGameState = GameState.MainMenu;
-                        base.Initialize();
+                        Initialize();
                     }
                     else if (P2HitLimit == 0)
                     {
                         inGame = false;
                         currentGameState = GameState.MainMenu;
-                        base.Initialize();
+                        Initialize();
                     }
                 }
             }
@@ -787,6 +871,18 @@ namespace Battleship
                     }
                 }
             }
+        }
+        /// <summary>
+        /// Event called when the rotate timer times out.
+        /// </summary>
+        /// <param name="source">The source of the event.</param>
+        /// <param name="e">The event arguments.</param>
+        private static void OnTimeoutEvent(object source, ElapsedEventArgs e)
+        {
+            // Type cast the source of the event to a Timer object and dispose of it. The source will always be a Timer object, since this event is only called when a timer times out.
+            // However, coding the logic this way is more robust and prevents potential errors.
+            Timer timer = (Timer)source;
+            timer.Dispose(); // Dispose of the timer
         }
     }
 }
