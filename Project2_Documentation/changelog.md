@@ -1,5 +1,11 @@
 # Changelog
 
+## September 29
+
+### Added
+
+- Implemented instructions menu to explain how everything about our game works **(Andrew)**
+
 ## September 23
 
 ### Added
