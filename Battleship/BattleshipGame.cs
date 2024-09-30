@@ -842,35 +842,69 @@ private bool? PriorityAIAttack(Grid grid, List<(int, int)> priorityAttacks)
     int gridSize = grid.GridArray.GetLength(0); // Get grid size
     bool? success = null;
 
-    // If priority attacks exist, use their coordinates and remove the tuple from the list
+    // If priority attacks exist, use them, otherwise fall back to random attacks
     if (priorityAttacks.Count > 0)
     {
+        // Process priority attack targets
         var priorityAttack = priorityAttacks[0];
         int tileX = priorityAttack.Item1;
         int tileY = priorityAttack.Item2;
+
+        // Remove the target from the priority list
         priorityAttacks.RemoveAt(0);
 
-        // Set the current tile to the priority attack
+        // Set the AI's current tile to the priority target
         grid.CurrentTile = grid.GridArray[tileX, tileY];
         success = grid.Shoot();
 
-        // If a ship tile was attacked, add the adjacent tiles to the priority attack list
+        // If a ship was hit, add the adjacent tiles to the priority list
         if (success == true)
         {
-            if (tileX - 1 >= 0) priorityAttacks.Add((tileX - 1, tileY));
-            if (tileX + 1 < gridSize) priorityAttacks.Add((tileX + 1, tileY));
-            if (tileY - 1 >= 0) priorityAttacks.Add((tileX, tileY - 1));
-            if (tileY + 1 < gridSize) priorityAttacks.Add((tileX, tileY + 1));
+            AddAdjacentTilesToPriorityList(priorityAttacks, tileX, tileY, gridSize);
         }
     }
     else
     {
-        // No priority attack exists, so perform a random attack
+        // If no priority targets remain, fall back to random attack
         success = RandomAIAttack(grid);
+
+        // If the AI randomly hits a ship, add the adjacent tiles to the priority list
+        if (success == true)
+        {
+            // Get the coordinates of the random hit tile
+            var hitTileCoordinates = grid.GridArray.CoordinatesOf(grid.CurrentTile);
+            int tileX = hitTileCoordinates.Item1;
+            int tileY = hitTileCoordinates.Item2;
+
+            AddAdjacentTilesToPriorityList(priorityAttacks, tileX, tileY, gridSize);
+        }
     }
 
     return success;
 }
+
+
+private void AddAdjacentTilesToPriorityList(List<(int, int)> priorityAttacks, int tileX, int tileY, int gridSize)
+{
+    // Add the adjacent tiles to the priority list, ensuring they are within the bounds of the grid
+    if (tileX - 1 >= 0 && !priorityAttacks.Contains((tileX - 1, tileY))) // Left
+    {
+        priorityAttacks.Add((tileX - 1, tileY));
+    }
+    if (tileX + 1 < gridSize && !priorityAttacks.Contains((tileX + 1, tileY))) // Right
+    {
+        priorityAttacks.Add((tileX + 1, tileY));
+    }
+    if (tileY - 1 >= 0 && !priorityAttacks.Contains((tileX, tileY - 1))) // Up
+    {
+        priorityAttacks.Add((tileX, tileY - 1));
+    }
+    if (tileY + 1 < gridSize && !priorityAttacks.Contains((tileX, tileY + 1))) // Down
+    {
+        priorityAttacks.Add((tileX, tileY + 1));
+    }
+}
+
 
 private bool? GuaranteedHitAIAttack(Grid grid)
 {
