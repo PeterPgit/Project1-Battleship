@@ -1,4 +1,5 @@
 # Changelog
+
 ## September 29
 
 ### Updates
@@ -6,6 +7,10 @@
 - Added Proper documentaion across project **(Mikey)**
 
 ### Added
+
+- Implemented instructions menu to explain how everything about our game works **(Andrew)**
+
+
 ## September 24
 
 ### Updates
@@ -15,12 +20,6 @@
 ### Added
 
 - UML Diagram **(Jack)**
-
-## September 29
-
-### Added
-
-- Implemented instructions menu to explain how everything about our game works **(Andrew)**
 
 ## September 23
 
