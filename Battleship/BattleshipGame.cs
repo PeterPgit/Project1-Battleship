@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.IO.Pipes;
+using System.Timers;
 
 namespace Battleship
 {
@@ -725,6 +726,8 @@ private void HandleAIShot()
 
         // If the game hasn't ended, progress to the next turn
         _turnManager.NextTurn();
+        _turnManager.SwapWaiting = false;
+        _shipManager.ReadClick = true;
         _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
         _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
     }
@@ -831,13 +834,11 @@ private bool? RandomAIAttack(Grid grid)
         grid.CurrentTile = grid.GridArray[randomTileX, randomTileY];
         success = grid.Shoot();
     }
-
     return success;
 }
 
 private bool? PriorityAIAttack(Grid grid, List<(int, int)> priorityAttacks)
 {
-    Random random = new Random();
     int gridSize = grid.GridArray.GetLength(0); // Get grid size
     bool? success = null;
 
@@ -853,7 +854,7 @@ private bool? PriorityAIAttack(Grid grid, List<(int, int)> priorityAttacks)
         priorityAttacks.RemoveAt(0);
 
         // Set the AI's current tile to the priority target
-        grid.CurrentTile = grid.GridArray[tileX, tileY];
+        grid.CurrentTile = grid.GridArray[tileY, tileX];
         success = grid.Shoot();
 
         // If a ship was hit, add the adjacent tiles to the priority list
@@ -886,19 +887,19 @@ private bool? PriorityAIAttack(Grid grid, List<(int, int)> priorityAttacks)
 private void AddAdjacentTilesToPriorityList(List<(int, int)> priorityAttacks, int tileX, int tileY, int gridSize)
 {
     // Add the adjacent tiles to the priority list, ensuring they are within the bounds of the grid
-    if (tileX - 1 >= 0 && !priorityAttacks.Contains((tileX - 1, tileY))) // Left
+    if (tileX - 1 >= 1 && !priorityAttacks.Contains((tileX - 1, tileY))) // Left
     {
         priorityAttacks.Add((tileX - 1, tileY));
     }
-    if (tileX + 1 < gridSize && !priorityAttacks.Contains((tileX + 1, tileY))) // Right
+    if (tileX + 1 <= 10 && !priorityAttacks.Contains((tileX + 1, tileY))) // Right
     {
         priorityAttacks.Add((tileX + 1, tileY));
     }
-    if (tileY - 1 >= 0 && !priorityAttacks.Contains((tileX, tileY - 1))) // Up
+    if (tileY - 1 >= 1 && !priorityAttacks.Contains((tileX, tileY - 1))) // Up
     {
         priorityAttacks.Add((tileX, tileY - 1));
     }
-    if (tileY + 1 < gridSize && !priorityAttacks.Contains((tileX, tileY + 1))) // Down
+    if (tileY + 1 <= 10 && !priorityAttacks.Contains((tileX, tileY + 1))) // Down
     {
         priorityAttacks.Add((tileX, tileY + 1));
     }
