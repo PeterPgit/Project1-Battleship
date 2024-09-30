@@ -6,7 +6,7 @@
 - [X] Add expected person hours and reasoning
 - [X] Decide on a custom addition
   - [X] Create UML diagram
-  - [X] Implement idea
+  - [ ] Implement idea
 - [X] AI Opponent
   - [X] Create AI Opponent Selection interface
   - [X] Create AI Easy Difficulty Level

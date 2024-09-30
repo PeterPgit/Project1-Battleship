@@ -5,18 +5,11 @@
 ### Updates
 
 - Added Proper documentaion across project **(Mikey)**
-  
+
 ### Added
 
 - Implemented instructions menu to explain how everything about our game works **(Andrew)**
-- Implemented 3x3 bomb for 2 player mode **(Ian)**
-- Implemented Row/Column bomb for 2 player mode **(Ian)**
 
-## September 28
-
-### Updates
-
-- Worked on the custom additions **(Ian)**
 
 ## September 24
 
@@ -36,7 +29,6 @@
 - Implemented easy difficulty for AI **(Peter)**
 - Implemented hard difficulty for AI **(Peter)**
 - Implemented medium difficulty for AI **(Peter)**
-
 
 ## September 22
 
@@ -86,3 +78,4 @@
     \+ Documentation Folder
     \+ Person Hours record sheet
     \+ Documentation file
+
