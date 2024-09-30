@@ -5,6 +5,7 @@
 ### Updates
 
 - Added Proper documentaion across project **(Mikey)**
+- Fixed Medium AI bug **(Peter)**
 
 ### Added
 

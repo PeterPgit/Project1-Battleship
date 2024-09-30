@@ -2,7 +2,7 @@
 
 ## Estimate Person Hours: 20 Hours
 
-- Bulk of the time spent on project will be each group member learning C#. None of us have coded in C# before. Most of the features that we need to implement fall under Polishing and Finishing touches. 
+- Bulk of the time spent on project will be each group member learning C#. None of us have coded in C# before. Most of the features that we need to implement fall under Polishing and Finishing touches.
 - ~2 Hours each learning the code base
 - 5 Hours for AI implementation
 - 5 Hours for custom addition implementation
@@ -15,6 +15,7 @@
 - 3 (9/19)
 - .5 (9/20)
 - 4 (9/23)
+- 1 (9/29)
 
 ### Ian Wilson
 
@@ -36,4 +37,5 @@
 - 2 (9/29)
 
 ### Jack Youngquist
+
 - 2 (9/24)
