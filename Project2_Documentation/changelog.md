@@ -43,8 +43,8 @@
 ### Added
 
 - Implemented feature so that users get better feedback when switching turns **(Mikey)**
-  - New waiting state in BattleshipGame.cs
-  - New background, font, and sprites
+  - New waiting state in BattleshipGame.cs **(Mikey)**
+  - New background, font, and sprites **(Mikey)**
 
 ## September 21
 

@@ -16,6 +16,7 @@ public enum GameState
     Playing,
     ShipSelection,
     Settings,
+    Instructions,
     Postgame,
     Exit
 }

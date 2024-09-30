@@ -88,6 +88,8 @@ namespace Battleship
         /// </summary>
         private SettingsMenu SettingsMenu;
 
+        private InstructionsMenu instructionsMenu;
+
         /// <summary>
         /// Creates object to store the selected difficulty for the AI; Sets the default state to disabled
         /// </summary>
@@ -185,10 +187,11 @@ namespace Battleship
                 _spriteBatch = new SpriteBatch(GraphicsDevice);
                 font = Content.Load<SpriteFont>("defaultFont");
 
-                // Initialize the main menu and ship selection menu
+                // Initialize the main menu, ship selection menu, and instructions menu
                 menu = new Menu(font);
                 SettingsMenu = new SettingsMenu(font);
                 shipSelectionMenu = new ShipSelectionMenu(font);
+                instructionsMenu = new InstructionsMenu(font);
                 return;
             }
             _player1grid = new Grid(Constants.GRID_SIZE, Constants.PLAYER_1_OFFSET);
@@ -294,6 +297,10 @@ namespace Battleship
                             currentGameState = GameState.MainMenu; // Transition back to main menu
                             base.Initialize();
                         }
+                        break;
+
+                    case GameState.Instructions:
+                        instructionsMenu.Update();
                         break;
 
                     case GameState.Exit:
@@ -459,6 +466,10 @@ namespace Battleship
                 {
                     SettingsMenu.Draw(_spriteBatch);
                     SettingsMenu.SelectedDifficulty = selectedDifficulty;
+                }
+                else if (currentGameState == GameState.Instructions)
+                {
+                    instructionsMenu.Draw(_spriteBatch);
                 }
 
                 _spriteBatch.End(); // End the sprite batch for drawing.
