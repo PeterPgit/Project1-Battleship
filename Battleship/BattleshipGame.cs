@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.IO.Pipes;
+using System.Timers;
 
 namespace Battleship
 {
@@ -263,6 +264,10 @@ namespace Battleship
                             P2HitLimit = shipCount * (shipCount + 1) / 2; // Calculate the hit limit for player 2.
                             inGame = true; // Set the game to be in progress. This will skip the main menu and ship selection menu logic from all subsequent calls to Update().
                             currentGameState = GameState.Playing;  // Transition to the gameplay state
+                            P1BombAmmo = 3; // Reset Player 1 bomb ammo
+                            P2BombAmmo = 3; // Reset Player 2 bomb ammo
+                            P1CarpetBombAmmo = 1; // Reset Player 1 carpet bomb ammo
+                            P2CarpetBombAmmo = 1; // Reset Player 2 carpet bomb ammo
                             base.Initialize();
                             _shipManager!.ReadClick = false; // Set the read click to false ensure catching the positive end of the next click.
                         }
@@ -621,6 +626,8 @@ private void CarpetBombShoot(Grid grid, ref int hitLimit, CursorOrientation orie
         // Declare Player 1 and Player 2 carpet bomb orientations
         private CursorOrientation P1CarpetBombOrientation = CursorOrientation.HORIZONTAL;
         private CursorOrientation P2CarpetBombOrientation = CursorOrientation.HORIZONTAL;
+        private Timer? _rotateTimeout; // Timer to debounce the rotation key
+
 
         private enum ShotType
         {
@@ -677,7 +684,7 @@ private void CarpetBombShoot(Grid grid, ref int hitLimit, CursorOrientation orie
                     // Rotate the carpet bomb orientation when R is pressed
                     if (P2Shot == ShotType.CarpetBomb && keyboardState.IsKeyDown(Keys.R))
                     {
-                        P1CarpetBombOrientation = (P1CarpetBombOrientation == CursorOrientation.HORIZONTAL) ?
+                        P2CarpetBombOrientation = (P2CarpetBombOrientation == CursorOrientation.HORIZONTAL) ?
                                                     CursorOrientation.VERTICAL : CursorOrientation.HORIZONTAL;
                     }
                 }
@@ -710,33 +717,41 @@ private void CarpetBombShoot(Grid grid, ref int hitLimit, CursorOrientation orie
                         }
                         else if (P1Shot == ShotType.Bomb && P1BombAmmo > 0)
                         {
-                            BombShoot(_player2grid, ref P2HitLimit); // Perform bomb shot on Player 2's grid
-                            P1BombAmmo--; // Decrease Player 1's bomb ammo after bomb shot
-                            success = true; // Bomb shot treated as a valid success
+                            if (_player2grid.CurrentTile != null)
+                            {
+                                BombShoot(_player2grid, ref P2HitLimit); // Perform bomb shot on Player 2's grid
+                                P1BombAmmo--; // Decrease Player 1's bomb ammo after bomb shot
+                                success = true; // Bomb shot treated as a valid success
 
-                            // Turn progression after bomb shot
-                            _turnManager.NextTurn();
-                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+                                // Turn progression after bomb shot
+                                _turnManager.NextTurn();
+                                _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+                                _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
 
-                            // Reset the CurrentTile to avoid lingering issues
-                            _player1grid.CurrentTile = null;
-                            _player2grid.CurrentTile = null;
+                                // Reset the CurrentTile to avoid lingering issues
+                                _player1grid.CurrentTile = null;
+                                _player2grid.CurrentTile = null;
+                            }
+                            
                         }
                         else if (P1Shot == ShotType.CarpetBomb && P1CarpetBombAmmo > 0)
                         {
-                            CarpetBombShoot(_player2grid, ref P2HitLimit, P1CarpetBombOrientation); // Perform carpet bomb shot on Player 2's grid
-                            P1CarpetBombAmmo--; // Decrease Player 1's carpet bomb ammo
-                            success = true; // Carpet bomb shot treated as a valid success
+                            if (_player2grid.CurrentTile != null)
+                            {
+                                CarpetBombShoot(_player2grid, ref P2HitLimit, P1CarpetBombOrientation); // Perform carpet bomb shot on Player 2's grid
+                                P1CarpetBombAmmo--; // Decrease Player 1's carpet bomb ammo
+                                success = true; // Carpet bomb shot treated as a valid success
 
-                            // Turn progression after bomb shot
-                            _turnManager.NextTurn();
-                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+                                // Turn progression after bomb shot
+                                _turnManager.NextTurn();
+                                _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+                                _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
 
-                            // Reset the CurrentTile to avoid lingering issues
-                            _player1grid.CurrentTile = null;
-                            _player2grid.CurrentTile = null;
+                                // Reset the CurrentTile to avoid lingering issues
+                                _player1grid.CurrentTile = null;
+                                _player2grid.CurrentTile = null;
+                            }
+                            
                         }
                 }
                 else
@@ -761,31 +776,39 @@ private void CarpetBombShoot(Grid grid, ref int hitLimit, CursorOrientation orie
                     }
                     else if (P2Shot == ShotType.Bomb && P2BombAmmo > 0)
                     {
-                        BombShoot(_player1grid, ref P1HitLimit); // Perform bomb shot on Player 1's grid
-                        P2BombAmmo--; // Decrease Player 2's bomb ammo after bomb shot
-                        success = true; // Bomb shot treated as a valid success
+                        if (_player1grid.CurrentTile != null)
+                        {
+                            BombShoot(_player1grid, ref P1HitLimit); // Perform bomb shot on Player 1's grid
+                            P2BombAmmo--; // Decrease Player 2's bomb ammo after bomb shot
+                            success = true; // Bomb shot treated as a valid success
 
-                        _turnManager.NextTurn();
-                        _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                        _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+                            _turnManager.NextTurn();
+                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
 
-                        // Reset the CurrentTile to avoid lingering issues
-                        _player1grid.CurrentTile = null;
-                        _player2grid.CurrentTile = null;
+                            // Reset the CurrentTile to avoid lingering issues
+                            _player1grid.CurrentTile = null;
+                            _player2grid.CurrentTile = null;
+                        }
+                        
                     }
                     else if (P2Shot == ShotType.CarpetBomb && P2CarpetBombAmmo > 0)
                     {
-                        CarpetBombShoot(_player1grid, ref P1HitLimit, P2CarpetBombOrientation); // Perform carpet bomb shot on Player 1's grid
-                        P2CarpetBombAmmo--; // Decrease Player 2's carpet bomb ammo after bomb shot
-                        success = true; 
+                        if (_player1grid.CurrentTile != null)
+                        {
+                            CarpetBombShoot(_player1grid, ref P1HitLimit, P2CarpetBombOrientation); // Perform carpet bomb shot on Player 1's grid
+                            P2CarpetBombAmmo--; // Decrease Player 2's carpet bomb ammo after bomb shot
+                            success = true; 
 
-                        _turnManager.NextTurn();
-                        _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                        _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+                            _turnManager.NextTurn();
+                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
 
-                        // Reset the CurrentTile to avoid lingering issues
-                        _player1grid.CurrentTile = null;
-                        _player2grid.CurrentTile = null;
+                            // Reset the CurrentTile to avoid lingering issues
+                            _player1grid.CurrentTile = null;
+                            _player2grid.CurrentTile = null;
+                        }
+                        
                         
                 }
                     if (P1HitLimit == 0)
