@@ -267,10 +267,6 @@ namespace Battleship
                             P2HitLimit = shipCount * (shipCount + 1) / 2; // Calculate the hit limit for player 2.
                             inGame = true; // Set the game to be in progress. This will skip the main menu and ship selection menu logic from all subsequent calls to Update().
                             currentGameState = GameState.Playing;  // Transition to the gameplay state
-                            P1BombAmmo = 3; // Reset Player 1 bomb ammo
-                            P2BombAmmo = 3; // Reset Player 2 bomb ammo
-                            P1CarpetBombAmmo = 1; // Reset Player 1 carpet bomb ammo
-                            P2CarpetBombAmmo = 1; // Reset Player 2 carpet bomb ammo
                             base.Initialize();
                             _shipManager!.ReadClick = false; // Set the read click to false ensure catching the positive end of the next click.
                         }
@@ -509,10 +505,6 @@ namespace Battleship
         }
 
 
-        /// <summary>
-        /// Handles shooting logic for the game.
-        /// </summary>
-        
 private void BombShoot(Grid grid, ref int hitLimit)
 {
     if (grid.CurrentTile == null)
@@ -646,435 +638,262 @@ private void CarpetBombShoot(Grid grid, ref int hitLimit, CursorOrientation orie
             Bomb,
             CarpetBomb
         }
+
+        /// <summary>
+        /// Handles shooting logic for the game.
+        /// </summary>
         private void HandleShooting()
+{
+    // If the game is not in progress, return because there's nothing to shoot.
+    if (!inGame)
+    {
+        return;
+    }
+
+    MouseState mouseState = Mouse.GetState(); // Get the current mouse state.
+    KeyboardState keyboardState = Keyboard.GetState(); // Get the current keyboard state.
+
+    // Handle Player's Shot Selection
+    if (selectedDifficulty == DifficultyState.Disabled) // When the AI is disabled
+    {
+        if (_turnManager!.IsP1sTurn)
         {
-            // If the game is not in progress, return because there's nothing to shoot.
-            if (!inGame)
+            // Player 1 Shot Handling
+            HandlePlayerShot(_player2grid, ref P2HitLimit, ref P1Shot, ref P1BombAmmo, ref P1CarpetBombAmmo, ref P1CarpetBombOrientation, keyboardState, mouseState);
+        }
+        else
+        {
+            // Player 2 Shot Handling
+            HandlePlayerShot(_player1grid, ref P1HitLimit, ref P2Shot, ref P2BombAmmo, ref P2CarpetBombAmmo, ref P2CarpetBombOrientation, keyboardState, mouseState);
+        }
+    }
+    else
+    {
+        // AI Shot Handling
+        if (_turnManager!.IsP1sTurn)
+        {
+            // Player 1's turn logic (human)
+            HandlePlayerShot(_player2grid, ref P2HitLimit, ref P1Shot, ref P1BombAmmo, ref P1CarpetBombAmmo, ref P1CarpetBombOrientation, keyboardState, mouseState);
+        }
+        else
+        {
+            // AI's turn logic
+            HandleAIShot();
+        }
+    }
+
+    // Check for Game Over
+    if (P1HitLimit == 0 || P2HitLimit == 0)
+    {
+        EndGame();
+    }
+}
+
+// Handle AI shooting logic
+private void HandleAIShot()
+{
+    bool? success = false;
+    
+    // The AI logic for different difficulty levels
+    if (selectedDifficulty == DifficultyState.Easy)
+    {
+        success = RandomAIAttack(_player1grid);
+    }
+    else if (selectedDifficulty == DifficultyState.Medium)
+    {
+        success = PriorityAIAttack(_player1grid, priorityAttacks);
+    }
+    else if (selectedDifficulty == DifficultyState.Hard)
+    {
+        success = GuaranteedHitAIAttack(_player1grid);
+    }
+
+    // Check if AI's shot was successful
+    if (success != null)
+    {
+        // Decrement Player 1's hit limit if the AI hit a ship
+        if (success == true)
+        {
+            P1HitLimit--;
+        }
+
+        // Check for win condition after AI's shot
+        if (P1HitLimit == 0)
+        {
+            EndGame();
+            return; // Ensure no further actions are taken after the game ends
+        }
+
+        // If the game hasn't ended, progress to the next turn
+        _turnManager.NextTurn();
+        _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+        _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
+    }
+}
+
+
+private void HandlePlayerShot(Grid opponentGrid, ref int opponentHitLimit, ref ShotType selectedShot, ref int bombAmmo, ref int carpetBombAmmo, ref CursorOrientation carpetBombOrientation, KeyboardState keyboardState, MouseState mouseState)
+{
+    // Set default shot to normal
+    selectedShot = ShotType.Normal;
+
+    // Switch shot type if the player presses B (for Bomb) or C (for Carpet Bomb)
+    if (keyboardState.IsKeyDown(Keys.B) && bombAmmo > 0)
+    {
+        selectedShot = ShotType.Bomb;
+    }
+    else if (keyboardState.IsKeyDown(Keys.C) && carpetBombAmmo > 0)
+    {
+        selectedShot = ShotType.CarpetBomb;
+    }
+
+    // Rotate Carpet Bomb if R is pressed
+    if (selectedShot == ShotType.CarpetBomb && keyboardState.IsKeyDown(Keys.R))
+    {
+        carpetBombOrientation = (carpetBombOrientation == CursorOrientation.HORIZONTAL) ? CursorOrientation.VERTICAL : CursorOrientation.HORIZONTAL;
+    }
+
+    // Handle shot when the left mouse button is clicked
+    if (_shipManager!.ReadClick && mouseState.LeftButton == ButtonState.Pressed)
+    {
+        _shipManager.ReadClick = false;
+        bool? success = null;
+
+        if (selectedShot == ShotType.Normal)
+        {
+            success = opponentGrid.Shoot();
+            if (success == true)
             {
-                return;
+                opponentHitLimit--;
             }
-                
-            MouseState mouseState = Mouse.GetState(); // Get the current mouse state.
+        }
+        else if (selectedShot == ShotType.Bomb && bombAmmo > 0)
+        {
+            BombShoot(opponentGrid, ref opponentHitLimit);
+            bombAmmo--;
+            success = true;
+        }
+        else if (selectedShot == ShotType.CarpetBomb && carpetBombAmmo > 0)
+        {
+            CarpetBombShoot(opponentGrid, ref opponentHitLimit, carpetBombOrientation);
+            carpetBombAmmo--;
+            success = true;
+        }
 
-            if (selectedDifficulty == DifficultyState.Disabled) // Continues as normal if the AI is disabled
-            {
-                // Handle shot selection (could be tied to a key or UI element)
-                KeyboardState keyboardState = Keyboard.GetState();
-                 // Default shot type to normal at the beginning of each player's turn
-                if (_turnManager!.IsP1sTurn)
-                {
-                    P1Shot = ShotType.Normal; // Player 1 defaults to normal shot
-                    if (keyboardState.IsKeyDown(Keys.B) && P1BombAmmo > 0)
-                    {
-                        P1Shot = ShotType.Bomb; // Player 1 switches to bomb shot if B is pressed
-                    }
-                    else if (keyboardState.IsKeyDown(Keys.C) && P1CarpetBombAmmo > 0)
-                    {
-                        P1Shot = ShotType.CarpetBomb; // Player 1 switches to carpet bomb shot if C is pressed
-                    }
-                    // Rotate the carpet bomb orientation when R is pressed
-                    if (P1Shot == ShotType.CarpetBomb && keyboardState.IsKeyDown(Keys.R))
-                    {
-                        P1CarpetBombOrientation = (P1CarpetBombOrientation == CursorOrientation.HORIZONTAL) ?
-                                                    CursorOrientation.VERTICAL : CursorOrientation.HORIZONTAL;
-                    }
-                }
-                else
-                {
-                    P2Shot = ShotType.Normal; // Player 2 defaults to normal shot
+        // Check for win condition after the player's shot
+        if (opponentHitLimit == 0)
+        {
+            EndGame();
+            return; // Ensure no further actions are taken after the game ends
+        }
 
-                    if (keyboardState.IsKeyDown(Keys.B) && P2BombAmmo > 0)
-                    {
-                        P2Shot = ShotType.Bomb; // Player 2 switches to bomb shot if B is pressed
-                    }
-                    else if (keyboardState.IsKeyDown(Keys.C) && P2CarpetBombAmmo > 0)
-                    {
-                        P2Shot = ShotType.CarpetBomb; // Player 2 switches to carpet bomb shot if C is pressed
-                    }
-
-                    // Rotate the carpet bomb orientation when R is pressed
-                    if (P2Shot == ShotType.CarpetBomb && keyboardState.IsKeyDown(Keys.R))
-                    {
-                        P2CarpetBombOrientation = (P2CarpetBombOrientation == CursorOrientation.HORIZONTAL) ?
-                                                    CursorOrientation.VERTICAL : CursorOrientation.HORIZONTAL;
-                    }
-                }
-                // If the left mouse button is pressed and the read click is true, shoot the tile.
-                if (_shipManager!.ReadClick && mouseState.LeftButton == ButtonState.Pressed)
-                {
-                    _shipManager.ReadClick = false; // Set the read click to false to prevent multiple shots per click.
-                    bool? success = false; // This variable will store the result of the shot. Initialized to false.
-                    // Shoot the tile for the player whose turn it is.
-                    if (_turnManager!.IsP1sTurn)
-                    {
-                        if (P1Shot == ShotType.Normal)
-                        {
-                            success = _player2grid!.Shoot();
-                            if (success != null)
-                            {
-                                if (success == true)
-                                {
-                                    P2HitLimit = P2HitLimit - 1; // Decrement Player 2's hit limit if Player 1 hits
-
-                                }
-                                _turnManager.NextTurn();
-                                _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                                _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
-
-                                 // Reset the CurrentTile to avoid lingering issues
-                                _player1grid.CurrentTile = null;
-                                _player2grid.CurrentTile = null;
-                                }
-                        }
-                        else if (P1Shot == ShotType.Bomb && P1BombAmmo > 0)
-                        {
-                            if (_player2grid.CurrentTile != null)
-                            {
-                                BombShoot(_player2grid, ref P2HitLimit); // Perform bomb shot on Player 2's grid
-                                P1BombAmmo--; // Decrease Player 1's bomb ammo after bomb shot
-                                success = true; // Bomb shot treated as a valid success
-
-                                // Turn progression after bomb shot
-                                _turnManager.NextTurn();
-                                _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                                _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
-
-                                // Reset the CurrentTile to avoid lingering issues
-                                _player1grid.CurrentTile = null;
-                                _player2grid.CurrentTile = null;
-                            }
-                            
-                        }
-                        else if (P1Shot == ShotType.CarpetBomb && P1CarpetBombAmmo > 0)
-                        {
-                            if (_player2grid.CurrentTile != null)
-                            {
-                                CarpetBombShoot(_player2grid, ref P2HitLimit, P1CarpetBombOrientation); // Perform carpet bomb shot on Player 2's grid
-                                P1CarpetBombAmmo--; // Decrease Player 1's carpet bomb ammo
-                                success = true; // Carpet bomb shot treated as a valid success
-
-                                // Turn progression after bomb shot
-                                _turnManager.NextTurn();
-                                _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                                _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
-
-                                // Reset the CurrentTile to avoid lingering issues
-                                _player1grid.CurrentTile = null;
-                                _player2grid.CurrentTile = null;
-                            }
-                            
-                        }
-                }
-                else
-                {
-                    if (P2Shot == ShotType.Normal)
-                    {
-                        success = _player1grid!.Shoot();
-                        if (success != null)
-                        {
-                            if (success == true)
-                            {
-                                P1HitLimit = P1HitLimit - 1; // Decrement Player 1's hit limit if Player 1 hits
-                            }
-                            _turnManager.NextTurn();
-                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
-
-                            // Reset the CurrentTile to avoid lingering issues
-                            _player1grid.CurrentTile = null;
-                            _player2grid.CurrentTile = null;
-                        }
-                    }
-                    else if (P2Shot == ShotType.Bomb && P2BombAmmo > 0)
-                    {
-                        if (_player1grid.CurrentTile != null)
-                        {
-                            BombShoot(_player1grid, ref P1HitLimit); // Perform bomb shot on Player 1's grid
-                            P2BombAmmo--; // Decrease Player 2's bomb ammo after bomb shot
-                            success = true; // Bomb shot treated as a valid success
-
-                            _turnManager.NextTurn();
-                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
-
-                            // Reset the CurrentTile to avoid lingering issues
-                            _player1grid.CurrentTile = null;
-                            _player2grid.CurrentTile = null;
-                        }
-                        
-                    }
-                    else if (P2Shot == ShotType.CarpetBomb && P2CarpetBombAmmo > 0)
-                    {
-                        if (_player1grid.CurrentTile != null)
-                        {
-                            CarpetBombShoot(_player1grid, ref P1HitLimit, P2CarpetBombOrientation); // Perform carpet bomb shot on Player 1's grid
-                            P2CarpetBombAmmo--; // Decrease Player 2's carpet bomb ammo after bomb shot
-                            success = true; 
-
-                            _turnManager.NextTurn();
-                            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
-
-                            // Reset the CurrentTile to avoid lingering issues
-                            _player1grid.CurrentTile = null;
-                            _player2grid.CurrentTile = null;
-                        }
-                        
-                        
-                }
-                    if (P1HitLimit == 0)
-                    {
-                        inGame = false;
-                        currentGameState = GameState.MainMenu;
-                        _turnManager.SwapWaiting = true;
-                        _shipManager.ReadClick = false;
-                        base.Initialize();
-                    }
-                    else if (P2HitLimit == 0)
-                    {
-                        inGame = false;
-                        currentGameState = GameState.MainMenu;
-                        _turnManager.SwapWaiting = true;
-                        _shipManager.ReadClick = false;
-                        base.Initialize();
-                    }
-                }
-            }
-            // Easy difficulty: randomly selects tiles to attack
-            else if (selectedDifficulty == DifficultyState.Easy)
-            {
-                if (_shipManager!.ReadClick && ((mouseState.LeftButton == ButtonState.Pressed) || !_turnManager!.IsP1sTurn))
-                {
-                    _shipManager.ReadClick = false; // Set the read click to false to prevent multiple shots per click.
-                    bool? success = false; // This variable will store the result of the shot. Initialized to false.
-
-                    // Shoot the tile for the player whose turn it is.
-                    if (_turnManager!.IsP1sTurn)
-                    {
-                        success = _player2grid!.Shoot();
-                        if (success == true)
-                        {
-                            P2HitLimit = P2HitLimit - 1; // Decrement the hit limit for player 2 if the shot was successful.
-                        }
-                    }
-                    // If it is the AI's turn to attack:
-                    else
-                    {
-                        // Repeats until a valid tile is randomly selected to be attacked
-                        while (true)
-                        {
-                            Random random = new Random();
-                            int gridSize = _player2grid.GridArray.GetLength(0); // Used ChatGPT here to know how to get the size of an array
-                            int randomTileX = random.Next(1, gridSize);
-                            int randomTileY = random.Next(1, gridSize);   
-                            // Updates the AI's attacking tile to that which was randomly chosen
-                            _player1grid.CurrentTile = _player1grid.GridArray[randomTileX,randomTileY];
-
-                            success = _player1grid!.Shoot();
-                            if (success is not null)
-                                break;
-                        }
-                        if (success == true)
-                        {
-                            P1HitLimit = P1HitLimit - 1; // Decrement the hit limit for player 1 if the shot was successful.
-                        }
-                    }
-
-                    // If the shot was valid (a hit or a miss), move to the next turn and hide the ships of the player who is not taking their turn.
-                    if (success is not null)
-                    {
-                        _turnManager.NextTurn();
-                        // Reverts changes made in the NextTurn() function so that the user does not need to click to proceed on behalf of the AI
-                        _turnManager.SwapWaiting = false;
-                        _shipManager.ReadClick = true;
-                        _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                        _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
-                    }
-                    if (P1HitLimit == 0)
-                    {
-                        inGame = false;
-                        // Changes SwapWaiting and ReadClick back once the game ends to avoid glitches when returning to the main menu screen.
-                        _turnManager.SwapWaiting = true;
-                        _shipManager.ReadClick = false;
-                        currentGameState = GameState.MainMenu;
-                        base.Initialize();
-                    }
-                    else if (P2HitLimit == 0)
-                    {
-                        inGame = false;
-                        currentGameState = GameState.MainMenu;
-                        _turnManager.SwapWaiting = true;
-                        _shipManager.ReadClick = false;
-                        base.Initialize();
-                    }
-                }
-            }
-            // Medium AI Difficulty: Attacks orthogonal tiles when hitting a ship
-            else if (selectedDifficulty == DifficultyState.Medium)
-            {
-                if (_shipManager!.ReadClick && ((mouseState.LeftButton == ButtonState.Pressed) || !_turnManager!.IsP1sTurn))
-                {
-                    _shipManager.ReadClick = false; // Set the read click to false to prevent multiple shots per click.
-                    bool? success = false; // This variable will store the result of the shot. Initialized to false.
-
-                    // Shoot the tile for the player whose turn it is.
-                    if (_turnManager!.IsP1sTurn)
-                    {
-                        success = _player2grid!.Shoot();
-                        if (success == true)
-                        {
-                            P2HitLimit = P2HitLimit - 1; // Decrement the hit limit for player 2 if the shot was successful.
-                        }
-                    }
-                    // If it is the AI's turn to attack:
-                    else
-                    {
-                        // Repeats until a valid tile is randomly selected to be attacked
-                        while (true)
-                        {
-                            // Randomly generates coords to attack
-                            Random random = new Random();
-                            int gridSize = _player2grid.GridArray.GetLength(0); // Used ChatGPT here to know how to get the size of an array
-                            int tileX = random.Next(1, gridSize);
-                            int tileY = random.Next(1, gridSize);   
-
-                            // If priority attacks exist, use their coords and remove the tuple from the list
-                            if (priorityAttacks.Count > 0)
-                            {
-                                var priorityAttack = priorityAttacks[0];
-                                tileX = priorityAttack.Item1;
-                                tileY = priorityAttack.Item2;
-                                priorityAttacks.RemoveAt(0);
-                            }
-                            // Sets the CurrentTile to the priority attack if it exists, or the random attack if it doesn't
-                            _player1grid.CurrentTile = _player1grid.GridArray[tileX,tileY];
-                            // if (_player1grid.CurrentTile.HasShip)
-
-                            success = _player1grid!.Shoot();
-                            if (success is not null)
-                            {
-                                // If a ship tile was attacked, add the adjacent tiles to the priority attack list
-                                if (success is true)
-                                {
-                                    if (tileX-1 >= 1)
-                                        priorityAttacks.Add((tileX-1, tileY));
-                                    if (tileX+1 <= 10)
-                                        priorityAttacks.Add((tileX+1, tileY));
-                                    if (tileY-1 >= 1)
-                                        priorityAttacks.Add((tileX, tileY-1));
-                                    if (tileY+1 <= 10)
-                                        priorityAttacks.Add((tileX, tileY+1));
-                                }
-                                break;
-                            }
-                                
-                        }
-                        if (success == true)
-                        {
-                            P1HitLimit = P1HitLimit - 1; // Decrement the hit limit for player 1 if the shot was successful.
-                        }
-                    }
-
-                    // If the shot was valid (a hit or a miss), move to the next turn and hide the ships of the player who is not taking their turn.
-                    if (success is not null)
-                    {
-                        _turnManager.NextTurn();
-                        // Reverts changes made in the NextTurn() function so that the user does not need to click to proceed on behalf of the AI
-                        _turnManager.SwapWaiting = false;
-                        _shipManager.ReadClick = true;
-                        _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                        _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
-                    }
-                    if (P1HitLimit == 0)
-                    {
-                        inGame = false;
-                        // Changes SwapWaiting and ReadClick back once the game ends to avoid glitches when returning to the main menu screen.
-                        _turnManager.SwapWaiting = true;
-                        _shipManager.ReadClick = false;
-                        currentGameState = GameState.MainMenu;
-                        base.Initialize();
-                    }
-                    else if (P2HitLimit == 0)
-                    {
-                        inGame = false;
-                        currentGameState = GameState.MainMenu;
-                        _turnManager.SwapWaiting = true;
-                        _shipManager.ReadClick = false;
-                        base.Initialize();
-                    }
-                }
-            }
-            // Hard Difficulty: Lands a hit every turn
-            else if (selectedDifficulty == DifficultyState.Hard)
-            {
-                if (_shipManager!.ReadClick && ((mouseState.LeftButton == ButtonState.Pressed) || !_turnManager!.IsP1sTurn))
-                {
-                    _shipManager.ReadClick = false; // Set the read click to false to prevent multiple shots per click.
-                    bool? success = false; // This variable will store the result of the shot. Initialized to false.
-
-                    // Shoot the tile for the player whose turn it is.
-                    if (_turnManager!.IsP1sTurn)
-                    {
-                        success = _player2grid!.Shoot();
-                        if (success == true)
-                        {
-                            P2HitLimit = P2HitLimit - 1; // Decrement the hit limit for player 2 if the shot was successful.
-                        }
-                    }
-                    // If it is the AI's turn to attack:
-                    else
-                    {
-                        // Repeats until a valid tile is randomly selected to be attacked
-                        while (true)
-                        {
-                            Random random = new Random();
-                            int gridSize = _player2grid.GridArray.GetLength(0); // Used ChatGPT here to know how to get the size of an array
-                            int randomTileX = random.Next(1, gridSize);
-                            int randomTileY = random.Next(1, gridSize);   
-                            // Updates the AI's attacking tile to that which was randomly chosen
-                            _player1grid.CurrentTile = _player1grid.GridArray[randomTileX,randomTileY];
-                            if (!_player1grid.CurrentTile.HasShip)
-                                continue;
-                            success = _player1grid!.Shoot();
-                            if (success is not null)
-                                break;
-                        }
-                        if (success == true)
-                        {
-                            P1HitLimit = P1HitLimit - 1; // Decrement the hit limit for player 1 if the shot was successful.
-                        }
-                    }
-
-                    // If the shot was valid (a hit or a miss), move to the next turn and hide the ships of the player who is not taking their turn.
-                    if (success is not null)
-                    {
-                        _turnManager.NextTurn();
-                        // Reverts changes made in the NextTurn() function so that the user does not need to click to proceed on behalf of the AI
-                        _turnManager.SwapWaiting = false;
-                        _shipManager.ReadClick = true;
-                        _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
-                        _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
-                    }
-                    if (P1HitLimit == 0)
-                    {
-                        inGame = false;
-                        // Changes SwapWaiting and ReadClick back once the game ends to avoid glitches when returning to the main menu screen.
-                        _turnManager.SwapWaiting = true;
-                        _shipManager.ReadClick = false;
-                        currentGameState = GameState.MainMenu;
-                        base.Initialize();
-                    }
-                    else if (P2HitLimit == 0)
-                    {
-                        inGame = false;
-                        currentGameState = GameState.MainMenu;
-                        _turnManager.SwapWaiting = true;
-                        _shipManager.ReadClick = false;
-                        base.Initialize();
-                    }
-                }
-            }
+        // Progress the turn if a valid shot was made
+        if (success != null)
+        {
+            _turnManager.NextTurn();
+            _shipManager!.HideP1Ships = !_turnManager.IsP1sTurn;
+            _shipManager.HideP2Ships = _turnManager.IsP1sTurn;
         }
     }
 }
+
+
+private void EndGame()
+{
+    inGame = false;
+    currentGameState = GameState.MainMenu; // Transition to main menu or you could use a GameOver screen if you have one
+    _turnManager.SwapWaiting = true;
+    _shipManager.ReadClick = false;
+
+    // Reset any necessary game variables
+    P1BombAmmo = 1;
+    P2BombAmmo = 1;
+    P1CarpetBombAmmo = 1;
+    P2CarpetBombAmmo = 1;
+
+    base.Initialize(); // Reset the game to its initial state
+}
+
+
+private bool? RandomAIAttack(Grid grid)
+{
+    Random random = new Random();
+    int gridSize = grid.GridArray.GetLength(0); // Get grid size
+    int randomTileX, randomTileY;
+    bool? success = null;
+
+    // Repeats until a valid tile is randomly selected to be attacked
+    while (success == null)
+    {
+        randomTileX = random.Next(1, gridSize);
+        randomTileY = random.Next(1, gridSize);
+
+        // Set the current tile to the randomly chosen one
+        grid.CurrentTile = grid.GridArray[randomTileX, randomTileY];
+        success = grid.Shoot();
+    }
+
+    return success;
+}
+
+private bool? PriorityAIAttack(Grid grid, List<(int, int)> priorityAttacks)
+{
+    Random random = new Random();
+    int gridSize = grid.GridArray.GetLength(0); // Get grid size
+    bool? success = null;
+
+    // If priority attacks exist, use their coordinates and remove the tuple from the list
+    if (priorityAttacks.Count > 0)
+    {
+        var priorityAttack = priorityAttacks[0];
+        int tileX = priorityAttack.Item1;
+        int tileY = priorityAttack.Item2;
+        priorityAttacks.RemoveAt(0);
+
+        // Set the current tile to the priority attack
+        grid.CurrentTile = grid.GridArray[tileX, tileY];
+        success = grid.Shoot();
+
+        // If a ship tile was attacked, add the adjacent tiles to the priority attack list
+        if (success == true)
+        {
+            if (tileX - 1 >= 0) priorityAttacks.Add((tileX - 1, tileY));
+            if (tileX + 1 < gridSize) priorityAttacks.Add((tileX + 1, tileY));
+            if (tileY - 1 >= 0) priorityAttacks.Add((tileX, tileY - 1));
+            if (tileY + 1 < gridSize) priorityAttacks.Add((tileX, tileY + 1));
+        }
+    }
+    else
+    {
+        // No priority attack exists, so perform a random attack
+        success = RandomAIAttack(grid);
+    }
+
+    return success;
+}
+
+private bool? GuaranteedHitAIAttack(Grid grid)
+{
+    Random random = new Random();
+    int gridSize = grid.GridArray.GetLength(0); // Get grid size
+    bool? success = null;
+
+    // Repeats until a valid ship tile is found to be attacked
+    while (success == null)
+    {
+        int randomTileX = random.Next(1, gridSize);
+        int randomTileY = random.Next(1, gridSize);
+
+        grid.CurrentTile = grid.GridArray[randomTileX, randomTileY];
+
+        // Only attack if the tile has a ship
+        if (grid.CurrentTile.HasShip)
+        {
+            success = grid.Shoot();
+        }
+    }
+
+    return success;
+}
+    }
 }
