@@ -2,8 +2,13 @@
 
 ## September 29
 
+### Updates
+
+- Added Proper documentaion across project **(Mikey)**
+  
 ### Added
 
+- Implemented instructions menu to explain how everything about our game works **(Andrew)**
 - Implemented 3x3 bomb for 2 player mode **(Ian)**
 - Implemented Row/Column bomb for 2 player mode **(Ian)**
 
@@ -12,6 +17,16 @@
 ### Updates
 
 - Worked on the custom additions **(Ian)**
+
+## September 24
+
+### Updates
+
+- Worked on UML Diagram for our custom idea of special shots, currently have the custom shot ideas for a 3x3 bomb, column carpet bomb, and row carpet bomb **(Jack)**
+
+### Added
+
+- UML Diagram **(Jack)**
 
 ## September 23
 
@@ -71,13 +86,3 @@
     \+ Documentation Folder
     \+ Person Hours record sheet
     \+ Documentation file
-
-## September 24
-
-### Updates
-
-- Worked on UML Diagram for our custom idea of special shots, currently have the custom shot ideas for a 3x3 bomb, column carpet bomb, and row carpet bomb **(Jack)**
-
-### Added
-
-- UML Diagram **(Jack)**
